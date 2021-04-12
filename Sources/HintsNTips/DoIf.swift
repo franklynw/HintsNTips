@@ -39,7 +39,7 @@ struct If<T>: View {
     
     init<V: View, O: View>(_ binding: Binding<T?>, @ViewBuilder _ viewProvider: @escaping () -> V, @ViewBuilder else otherViewProvider: @escaping () -> O) {
         self.viewProvider = {
-            if let w = binding.wrappedValue {
+            if let _ = binding.wrappedValue {
                 return AnyView(viewProvider())
             } else {
                 return AnyView(otherViewProvider())
