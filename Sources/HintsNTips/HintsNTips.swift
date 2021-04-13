@@ -23,6 +23,7 @@ public struct HintsNTips: View {
         let title: String
         let message: String?
         let textColor: UIColor
+        let backgroundColor: UIColor?
         let strokeColor: UIColor?
         let buttons: [Button]
         
@@ -44,12 +45,13 @@ public struct HintsNTips: View {
             }
         }
         
-        public init(id: String, outlineRect: OutlineRect?, title: String, message: String? = nil, textColor: UIColor, strokeColor: UIColor? = nil, buttons: [Button] = []) {
+        public init(id: String, outlineRect: OutlineRect?, title: String, message: String? = nil, textColor: UIColor, backgroundColor: UIColor? = nil, strokeColor: UIColor? = nil, buttons: [Button] = []) {
             self.id = id
             self.outlineRect = outlineRect
             self.title = title
             self.message = message
             self.textColor = textColor
+            self.backgroundColor = backgroundColor
             self.strokeColor = strokeColor
             self.buttons = buttons
         }

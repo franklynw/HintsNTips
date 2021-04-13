@@ -11,55 +11,58 @@ import SwiftUI
 class HintsNTipsPresenter {
     
     private static var window: UIWindow?
-    private static var viewController: UIViewController?
     private static var parent: HintsNTips!
+    private static var container: UIView!
     private static var box: UIView!
     
     static func present(parent: HintsNTips) {
         
-        guard let appWindow = UIApplication.window else {
-            return
-        }
-        guard window == nil else {
+        guard window == nil, let windowScene = UIApplication.window?.windowScene else {
             return
         }
         
         self.parent = parent
         
-        if let windowScene = appWindow.windowScene {
+        let screenImage = screenGrab()
+        let newWindow = UIWindow(windowScene: windowScene)
+        
+        window = newWindow
+        window?.alpha = 0
+        window?.makeKeyAndVisible()
+        
+        let container = UIView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.alpha = 0
+        
+        window?.addSubview(container)
+        
+        container.pin(to: newWindow)
+        
+        self.container = container
+        
+        UIView.animate(withDuration: 0.3) {
+            window?.alpha = 1
+        } completion: { _ in
             
-            let screenImage = screenGrab()
-            
-            let newWindow = UIWindow(windowScene: windowScene)
-            
-            window = newWindow
-            window?.alpha = 0
-            window?.makeKeyAndVisible()
-            
-            UIView.animate(withDuration: 0.3) {
-                window?.alpha = 1
-            } completion: { _ in
+            if let screenImage = screenImage {
                 
-                if let screenImage = screenImage {
-                    
-                    addBlurredImage(withScreenGrab: screenImage)
-                    
-                    UIView.animate(withDuration: 0.3) {
-                        box.alpha = 1
-                    } completion: { _ in
-                        draw(with: parent)
-                    }
-                    
-                } else {
+                addBlurredImage(withScreenGrab: screenImage)
+                
+                UIView.animate(withDuration: 0.3) {
+                    container.alpha = 1
+                } completion: { _ in
                     draw(with: parent)
                 }
+                
+            } else {
+                draw(with: parent)
             }
-            
-            text(with: parent)
-            
-            let tapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(tapped))
-            window?.addGestureRecognizer(tapGestureRecognizer)
         }
+        
+        text(with: parent)
+        
+        let tapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(tapped))
+        window?.addGestureRecognizer(tapGestureRecognizer)
     }
     
     static func dismiss(withAction action: (() -> ())?) {
@@ -70,10 +73,8 @@ class HintsNTipsPresenter {
         
         UIView.animate(withDuration: 0.3) {
             window?.alpha = 0
-            viewController?.view.alpha = 0
         } completion: { _ in
             window = nil
-            viewController = nil
             parent.config = nil
             action?()
         }
@@ -86,12 +87,13 @@ class HintsNTipsPresenter {
     
     private static func text(with parent: HintsNTips) {
         
-        guard let window = window, let config = parent.config else {
+        guard let config = parent.config else {
             return
         }
         
         let screenRect = UIScreen.main.bounds
         let screenSize = screenRect.size
+        let edgePadding: CGFloat = 16
         
         let outlineRect = config.outlineRect ?? HintsNTips.Config.OutlineRect(center: CGPoint(x: 0, y: 0.1), size: .zero)
         
@@ -101,31 +103,32 @@ class HintsNTipsPresenter {
         box.layer.shadowRadius = 50
         box.layer.shadowColor = UIColor.black.cgColor
         box.layer.shadowOpacity = 0.2
-        box.alpha = 0
         
-        window.addSubview(box)
+        container.addSubview(box)
         
-        let xPadding: CGFloat = 50
-        
-        box.leadingAnchor.constraint(equalTo: window.leadingAnchor, constant: xPadding).isActive = true
-        box.trailingAnchor.constraint(equalTo: window.trailingAnchor, constant: -xPadding).isActive = true
+        box.pin(to: container, edges: [.leading(50), .trailing(50)])
         
         if outlineRect.center.y > 0.5 {
-            box.bottomAnchor.constraint(equalTo: window.topAnchor, constant: screenSize.height * outlineRect.center.y - outlineRect.size.height / 2 - 15).isActive = true
+            box.bottomAnchor.constraint(equalTo: container.topAnchor, constant: screenSize.height * outlineRect.center.y - outlineRect.size.height / 2 - edgePadding).isActive = true
         } else {
-            box.topAnchor.constraint(equalTo: window.topAnchor, constant: screenSize.height * outlineRect.center.y + outlineRect.size.height / 2 + 15).isActive = true
+            box.pin(to: container, edges: [.top(screenSize.height * outlineRect.center.y + outlineRect.size.height / 2 + edgePadding)])
         }
         
         self.box = box
         
         
-        let titleLabel = UILabel()
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.backgroundColor = .clear
-        titleLabel.textColor = config.textColor
+        func contentLabel() -> UILabel {
+            let label = UILabel()
+            label.translatesAutoresizingMaskIntoConstraints = false
+            label.backgroundColor = .clear
+            label.textColor = config.textColor
+            label.textAlignment = parent.textAlignment
+            label.numberOfLines = 0
+            return label
+        }
+        
+        let titleLabel = contentLabel()
         titleLabel.text = config.title
-        titleLabel.textAlignment = parent.textAlignment
-        titleLabel.numberOfLines = 0
         
         if let font = parent.font {
             titleLabel.font = font.withWeight(.semibold)
@@ -135,9 +138,7 @@ class HintsNTipsPresenter {
         
         box.addSubview(titleLabel)
         
-        titleLabel.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 16).isActive = true
-        titleLabel.trailingAnchor.constraint(equalTo: box.trailingAnchor, constant: -16).isActive = true
-        titleLabel.topAnchor.constraint(equalTo: box.topAnchor, constant: 16).isActive = true
+        titleLabel.pin(to: box, edges: [.leading(edgePadding), .trailing(edgePadding), .top(edgePadding)])
         
         
         let buttonsView: UIView?
@@ -156,7 +157,7 @@ class HintsNTipsPresenter {
                 }
                 let button = UIButton(primaryAction: action)
                 button.setTitle(buttonConfig.title, for: UIControl.State())
-                button.contentEdgeInsets = UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16)
+                button.contentEdgeInsets = UIEdgeInsets(top: edgePadding / 2, left: edgePadding, bottom: edgePadding / 2, right: edgePadding)
                 
                 if let buttonColor = parent.buttonColor {
                     button.tintColor = buttonColor
@@ -167,9 +168,7 @@ class HintsNTipsPresenter {
             
             box.addSubview(buttons)
             
-            buttons.leadingAnchor.constraint(equalTo: box.leadingAnchor).isActive = true
-            buttons.trailingAnchor.constraint(equalTo: box.trailingAnchor).isActive = true
-            buttons.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -16).isActive = true
+            buttons.pin(to: box, edges: [.leading, .trailing, .bottom(edgePadding)])
             
             buttonsView = buttons
             
@@ -180,13 +179,8 @@ class HintsNTipsPresenter {
         
         if let message = config.message {
             
-            let messageLabel = UILabel()
-            messageLabel.translatesAutoresizingMaskIntoConstraints = false
-            messageLabel.backgroundColor = .clear
-            messageLabel.textColor = config.textColor
+            let messageLabel = contentLabel()
             messageLabel.text = message
-            messageLabel.numberOfLines = 0
-            messageLabel.textAlignment = parent.textAlignment
             
             if let font = parent.font {
                 messageLabel.font = font
@@ -194,53 +188,71 @@ class HintsNTipsPresenter {
             
             box.addSubview(messageLabel)
             
-            messageLabel.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 16).isActive = true
-            messageLabel.trailingAnchor.constraint(equalTo: box.trailingAnchor, constant: -16).isActive = true
-            messageLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 16).isActive = true
+            messageLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: edgePadding).isActive = true
             
             if let buttonsView = buttonsView {
-                messageLabel.bottomAnchor.constraint(equalTo: buttonsView.topAnchor, constant: -8).isActive = true
+                messageLabel.pin(to: box, edges: [.leading(edgePadding), .trailing(edgePadding)])
+                messageLabel.bottomAnchor.constraint(equalTo: buttonsView.topAnchor, constant: -edgePadding / 2).isActive = true
             } else {
-                messageLabel.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -16).isActive = true
+                messageLabel.pin(to: box, edges: [.leading(edgePadding), .trailing(edgePadding), .bottom(edgePadding)])
             }
             
         } else {
             if let buttonsView = buttonsView {
-                titleLabel.bottomAnchor.constraint(equalTo: buttonsView.topAnchor, constant: -8).isActive = true
+                titleLabel.bottomAnchor.constraint(equalTo: buttonsView.topAnchor, constant: -edgePadding / 2).isActive = true
             } else {
-                titleLabel.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: -16).isActive = true
+                titleLabel.pin(to: box, edges: [.bottom(edgePadding)])
             }
         }
         
-        
         if parent.showsCloseButton {
+            
+            func addButton(name: String, action: UIAction) -> UIButton {
+                
+                let styleConfig = UIImage.SymbolConfiguration(textStyle: .title1)
+                let fontConfig = UIImage.SymbolConfiguration(weight: .semibold)
+                let imageConfig = styleConfig.applying(fontConfig)
+                let buttonImage = UIImage(systemName: name)?.applyingSymbolConfiguration(imageConfig)
+                
+                let button = UIButton(primaryAction: action)
+                button.setImage(buttonImage, for: UIControl.State())
+                button.translatesAutoresizingMaskIntoConstraints = false
+                button.transform = CGAffineTransform(scaleX: 1.3, y: 1.3)
+                
+                box.addSubview(button)
+
+                button.centerXAnchor.constraint(equalTo: box.trailingAnchor).isActive = true
+                button.centerYAnchor.constraint(equalTo: box.topAnchor).isActive = true
+                
+                return button
+            }
+            
+            if let backgroundColor = parent.config?.backgroundColor {
+                
+                let dummyButton = addButton(name: "circle.fill", action: UIAction { _ in })
+                
+                dummyButton.tintColor = backgroundColor
+                dummyButton.layer.shadowRadius = 2
+                dummyButton.layer.shadowOffset = .zero
+                dummyButton.layer.shadowColor = backgroundColor.changeColor(componentDelta: -0.5).cgColor
+                dummyButton.layer.shadowOpacity = 1
+            }
             
             let action = UIAction { _ in
                 dismiss(withAction: nil)
             }
-            let closeButton = UIButton(primaryAction: action)
             
-            let styleConfig = UIImage.SymbolConfiguration(textStyle: .title1)
-            let fontConfig = UIImage.SymbolConfiguration(weight: .semibold)
-            let imageConfig = styleConfig.applying(fontConfig)
-            let closeButtonImage = UIImage(systemName: "xmark.circle.fill")?.applyingSymbolConfiguration(imageConfig)
-            closeButton.setImage(closeButtonImage, for: UIControl.State())
-            closeButton.translatesAutoresizingMaskIntoConstraints = false
+            let closeButton = addButton(name: "xmark.circle.fill", action: action)
             
             if let buttonColor = parent.buttonColor {
                 closeButton.tintColor = buttonColor
             }
-            
-            box.addSubview(closeButton)
-            
-            closeButton.centerXAnchor.constraint(equalTo: box.trailingAnchor).isActive = true
-            closeButton.centerYAnchor.constraint(equalTo: box.topAnchor).isActive = true
         }
     }
     
     private static func draw(with parent: HintsNTips) {
         
-        guard let window = window, let config = parent.config, let outlineRect = config.outlineRect else {
+        guard let config = parent.config, let outlineRect = config.outlineRect else {
             return
         }
         
@@ -310,6 +322,9 @@ class HintsNTipsPresenter {
         
         path.addCurve(to: endPoint, controlPoint1: endCtrl1, controlPoint2: endCtrl2)
         
+        shapeLayer.path = path.cgPath
+        shapeLayer.strokeEnd = 0
+        
         let animation = CABasicAnimation(keyPath: "strokeEnd")
         animation.duration = parent.strokeDuration
         animation.fromValue = 0
@@ -317,12 +332,9 @@ class HintsNTipsPresenter {
         animation.fillMode = .forwards
         animation.isRemovedOnCompletion = false
         
-        shapeLayer.strokeEnd = 0
+        shapeLayer.add(animation, forKey: nil)
         
-        window.layer.addSublayer(shapeLayer)
-        
-        shapeLayer.path = path.cgPath
-        shapeLayer.add(animation, forKey: "stroke")
+        container.layer.addSublayer(shapeLayer)
     }
     
     private static func screenGrab() -> UIImage? {
@@ -344,11 +356,12 @@ class HintsNTipsPresenter {
     
     private static func addBlurredImage(withScreenGrab screenImage: UIImage) {
         
-        let rect = CGRect(origin: CGPoint(x: box.frame.minX * 2, y: box.frame.minY * 2), size: CGSize(width: box.frame.width * 2, height: box.frame.height * 2))
+        let scale = screenImage.scale
+        let rect = CGRect(origin: CGPoint(x: box.frame.minX * scale, y: box.frame.minY * scale), size: CGSize(width: box.frame.width * scale, height: box.frame.height * scale))
         
         let imageView = UIImageView(image: screenImage)
             
-        let visualEffectView = UIVisualEffectView(effect: UIBlurEffect(style: .regular))
+        let visualEffectView = UIVisualEffectView(effect: UIBlurEffect(style: .light))
         visualEffectView.frame = imageView.bounds
         imageView.addSubview(visualEffectView)
         
@@ -369,9 +382,47 @@ class HintsNTipsPresenter {
         
         box.insertSubview(blurredImageView, at: 0)
         
-        blurredImageView.leadingAnchor.constraint(equalTo: box.leadingAnchor).isActive = true
-        blurredImageView.trailingAnchor.constraint(equalTo: box.trailingAnchor).isActive = true
-        blurredImageView.topAnchor.constraint(equalTo: box.topAnchor).isActive = true
+        blurredImageView.pin(to: box, edges: [.leading, .trailing, .top])
         blurredImageView.heightAnchor.constraint(equalTo: box.widthAnchor, multiplier: croppedImage.size.height / croppedImage.size.width).isActive = true
+        
+        var cornerMask: CALayer {
+            
+            let radius: CGFloat = 18
+            
+            let maskLayer = CAShapeLayer()
+            maskLayer.frame = box.bounds
+            
+            let outerPath = UIBezierPath(rect: box.bounds)
+            let innerPath = UIBezierPath(ovalIn: CGRect(origin: CGPoint(x: box.bounds.maxX - radius, y: -radius), size: CGSize(width: radius * 2, height: radius * 2)))
+            outerPath.append(innerPath)
+            
+            maskLayer.path = outerPath.cgPath
+            maskLayer.fillColor = UIColor.black.cgColor
+            maskLayer.fillRule = .evenOdd
+            
+            return maskLayer
+        }
+        
+        if let backgroundColor = parent.config?.backgroundColor {
+            
+            let backgroundView = UIView()
+            backgroundView.translatesAutoresizingMaskIntoConstraints = false
+            backgroundView.backgroundColor = backgroundColor
+            backgroundView.layer.cornerRadius = 15
+            backgroundView.layer.masksToBounds = true
+            
+            box.insertSubview(backgroundView, at: 1)
+            
+            backgroundView.pin(to: box, edges: [.leading, .trailing, .top])
+            backgroundView.heightAnchor.constraint(equalTo: box.widthAnchor, multiplier: croppedImage.size.height / croppedImage.size.width).isActive = true
+            
+            if parent.showsCloseButton {
+                backgroundView.layer.mask = cornerMask
+            }
+        }
+        
+        if parent.showsCloseButton {
+            blurredImageView.layer.mask = cornerMask
+        }
     }
 }
