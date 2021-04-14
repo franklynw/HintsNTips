@@ -20,6 +20,7 @@ public struct HintsNTips: View {
     public struct Config: Identifiable {
         public let id: String
         let outlineRect: OutlineRect?
+        let exampleImage: ExampleImage?
         let title: String
         let message: String?
         let textColor: UIColor
@@ -45,9 +46,15 @@ public struct HintsNTips: View {
             }
         }
         
-        public init(id: String, outlineRect: OutlineRect?, title: String, message: String? = nil, textColor: UIColor, backgroundColor: UIColor? = nil, strokeColor: UIColor? = nil, buttons: [Button] = []) {
+        public enum ExampleImage {
+            case centered(UIImage)
+            case offset(UIImage, CGSize)
+        }
+        
+        public init(id: String, outlineRect: OutlineRect?, exampleImage: ExampleImage? = nil, title: String, message: String? = nil, textColor: UIColor, backgroundColor: UIColor? = nil, strokeColor: UIColor? = nil, buttons: [Button] = []) {
             self.id = id
             self.outlineRect = outlineRect
+            self.exampleImage = exampleImage
             self.title = title
             self.message = message
             self.textColor = textColor
