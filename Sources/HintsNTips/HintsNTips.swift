@@ -7,6 +7,10 @@
 import SwiftUI
 
 
+public protocol HintIdentifiable {
+    var id: String { get }
+}
+
 public struct HintsNTips: View {
     
     @Binding internal var config: Config?
@@ -17,7 +21,7 @@ public struct HintsNTips: View {
     internal var strokeDuration: TimeInterval = 1
     internal var showsCloseButton = false
     
-    public struct Config: Identifiable {
+    public struct Config: HintIdentifiable {
         public let id: String
         let outlineRect: OutlineRect?
         let exampleImage: ExampleImage?
