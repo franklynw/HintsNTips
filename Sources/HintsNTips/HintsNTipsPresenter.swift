@@ -63,8 +63,10 @@ class HintsNTipsPresenter {
         addBlurredImage(to: box, withScreenGrab: screenImage, inFrame: boxRect)
         shrink(view: box, with: parent, rect: boxRect)
         
-        let tapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(tapped))
-        window?.addGestureRecognizer(tapGestureRecognizer)
+        if !parent.showsCloseButton {
+            let tapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(tapped))
+            window?.addGestureRecognizer(tapGestureRecognizer)
+        }
     }
     
     static func dismiss(withAction action: (() -> ())?) {
@@ -101,6 +103,7 @@ class HintsNTipsPresenter {
     private static let minBoxEdgeSpace: CGFloat = 30
     private static let boxCornerRadius: CGFloat = 15
     private static let boxContentEdgePadding: CGFloat = 16
+    private static let closeButtonRadius: CGFloat = 17
     private static let buttonPadding: CGFloat = 16
     private static let desiredAspect: CGFloat = 5 / 3
     private static let defaultFontSize: CGFloat = 16
@@ -112,13 +115,14 @@ class HintsNTipsPresenter {
         }
         
         let screenSize = UIScreen.main.bounds.size
+        let cgMax = CGFloat.greatestFiniteMagnitude
         
         let font = parent.font ?? UIFont.systemFont(ofSize: defaultFontSize)
         var height = boxContentEdgePadding * 2
         
         let maxBoxWidth = screenSize.width - minBoxEdgeSpace * 2
         let maxButtonWidth: CGFloat = config.buttons.reduce(0) {
-            let buttonSize = $1.title.boundingRect(with: CGSize(width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude), options: .usesLineFragmentOrigin, attributes: [NSAttributedString.Key.font: font], context: nil).size
+            let buttonSize = $1.title.boundingRect(with: CGSize(width: cgMax, height: cgMax), options: .usesLineFragmentOrigin, attributes: [NSAttributedString.Key.font: font], context: nil).size
             height += buttonSize.height + buttonPadding
             let buttonWidth = buttonSize.width
             return min(max(buttonWidth, $0), maxBoxWidth - boxContentEdgePadding * 2)
@@ -127,21 +131,25 @@ class HintsNTipsPresenter {
         
         // we approximate here, just for attractive layout
         let allText = config.title + (config.message != nil ? config.message! + "/n/n" : "")
-        let approxTextSize = allText.boundingRect(with: CGSize(width: maxTextWidth, height: .greatestFiniteMagnitude), options: .usesLineFragmentOrigin, attributes: [NSAttributedString.Key.font: font], context: nil).size
+        let approxTextSize = allText.boundingRect(with: CGSize(width: maxTextWidth, height: cgMax), options: .usesLineFragmentOrigin, attributes: [NSAttributedString.Key.font: font], context: nil).size
         let textArea = approxTextSize.width * approxTextSize.height
         let desiredTextWidth = max(min(sqrt(textArea * desiredAspect), maxBoxWidth - boxContentEdgePadding * 2), maxButtonWidth)
         
-        let titleSize = config.title.boundingRect(with: CGSize(width: desiredTextWidth, height: .greatestFiniteMagnitude), options: .usesLineFragmentOrigin, attributes: [NSAttributedString.Key.font: font.withWeight(.semibold)], context: nil).size
+        let titleSize = config.title.boundingRect(with: CGSize(width: desiredTextWidth, height: cgMax), options: .usesLineFragmentOrigin, attributes: [NSAttributedString.Key.font: font.withWeight(.semibold)], context: nil).size
         height += titleSize.height
         
         if let message = config.message {
-            let messageSize = message.boundingRect(with: CGSize(width: desiredTextWidth, height: .greatestFiniteMagnitude), options: .usesLineFragmentOrigin, attributes: [NSAttributedString.Key.font: font], context: nil).size
+            let messageSize = message.boundingRect(with: CGSize(width: desiredTextWidth, height: cgMax), options: .usesLineFragmentOrigin, attributes: [NSAttributedString.Key.font: font], context: nil).size
             height += messageSize.height + boxContentEdgePadding
         }
         
         let width = max(desiredTextWidth, maxButtonWidth) + boxContentEdgePadding * 2
         
-        let outlineRect = config.outlineRect ?? HintsNTips.Config.OutlineRect(center: CGPoint(x: 0.5, y: 0.3), size: .zero)
+        let outlineRect = config.outlineRect ?? {
+            let topSpace = (screenSize.height - height) / 3
+            let y = topSpace / screenSize.height
+            return HintsNTips.Config.OutlineRect(center: CGPoint(x: 0.5, y: y), size: .zero)
+        }()
         let centerX = outlineRect.center.x * screenSize.width
         let centerY = outlineRect.center.y * screenSize.height
         let x = min(max(centerX - width / 2, minBoxEdgeSpace), screenSize.width - minBoxEdgeSpace - width)
@@ -257,43 +265,56 @@ class HintsNTipsPresenter {
         
         if parent.showsCloseButton {
             
-            func addButton(name: String, action: UIAction) -> UIButton {
+            func addConstraints(radius: CGFloat, to view: UIView) {
+                view.widthAnchor.constraint(equalToConstant: radius * 2).isActive = true
+                view.heightAnchor.constraint(equalToConstant: radius * 2).isActive = true
+                view.centerXAnchor.constraint(equalTo: box.trailingAnchor).isActive = true
+                view.centerYAnchor.constraint(equalTo: box.topAnchor).isActive = true
+            }
+            
+            func addCircle(radius: CGFloat, to view: UIView) -> UIView {
                 
-                let styleConfig = UIImage.SymbolConfiguration(textStyle: .title1)
-                let weightConfig = UIImage.SymbolConfiguration(weight: .semibold)
-                let imageConfig = styleConfig.applying(weightConfig)
-                let buttonImage = UIImage(systemName: name)?.applyingSymbolConfiguration(imageConfig)
+                let circle = UIView()
+                circle.translatesAutoresizingMaskIntoConstraints = false
+                circle.layer.cornerRadius = radius
                 
-                let button = UIButton(primaryAction: action)
-                button.setImage(buttonImage, for: UIControl.State())
-                button.translatesAutoresizingMaskIntoConstraints = false
-                button.transform = CGAffineTransform(scaleX: 1.3, y: 1.3)
+                view.addSubview(circle)
+                addConstraints(radius: radius, to: circle)
                 
-                box.addSubview(button)
-
-                button.centerXAnchor.constraint(equalTo: box.trailingAnchor).isActive = true
-                button.centerYAnchor.constraint(equalTo: box.topAnchor).isActive = true
-                
-                return button
+                return circle
             }
             
             if let backgroundColor = parent.config?.backgroundColor {
+
+                let dummyButton = addCircle(radius: closeButtonRadius - 3, to: box)
+                let color = backgroundColor.equivalentColorWithNoTransparency.changeColor(componentDelta: -0.3)
                 
-                let dummyButton = addButton(name: "circle.fill", action: UIAction { _ in })
-                
-                dummyButton.tintColor = backgroundColor
-                dummyButton.layer.shadowRadius = 2
+                dummyButton.backgroundColor = color
+                dummyButton.layer.shadowRadius = 5
                 dummyButton.layer.shadowOffset = .zero
-                dummyButton.layer.shadowColor = backgroundColor.changeColor(componentDelta: -0.5).cgColor
+                dummyButton.layer.shadowColor = color.cgColor
                 dummyButton.layer.shadowOpacity = 1
             }
             
-            let action = UIAction { _ in
-                dismiss(withAction: nil)
-            }
+            let styleConfig = UIImage.SymbolConfiguration(textStyle: .title1)
+            let weightConfig = UIImage.SymbolConfiguration(weight: .semibold)
+            let imageConfig = styleConfig.applying(weightConfig)
+            let buttonImage = UIImage(systemName: "xmark.circle.fill")?.applyingSymbolConfiguration(imageConfig)
             
-            let closeButton = addButton(name: "xmark.circle.fill", action: action)
-            closeButton.tintColor = config.textColor
+            let button = UIImageView(image: buttonImage)
+            button.translatesAutoresizingMaskIntoConstraints = false
+            button.tintColor = config.textColor
+            
+            box.addSubview(button)
+            addConstraints(radius: closeButtonRadius, to: button)
+            
+            
+            // because the above button is on box, its interactive area is clipped by the box bounds (as box clips its subviews)
+            // easiest fix is to add an invisible button over it, which is directly on container
+            
+            let actionButton = addCircle(radius: closeButtonRadius, to: container)
+            let tapGestureRecognizer = UITapGestureRecognizer(target: self, action: #selector(tapped))
+            actionButton.addGestureRecognizer(tapGestureRecognizer)
         }
         
         return box
