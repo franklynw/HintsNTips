@@ -36,6 +36,7 @@ class HintsNTipsPresenter {
         window = newWindow
         window?.alpha = 0
         window?.makeKeyAndVisible()
+        window?.overrideUserInterfaceStyle = parent.userInterfaceStyle
         
         let container = UIView()
         container.translatesAutoresizingMaskIntoConstraints = false
@@ -326,6 +327,12 @@ class HintsNTipsPresenter {
             return
         }
         
+        let buffer = UIView(frame: CGRect(origin: .zero, size: CGSize(width: 5, height: 5)))
+        buffer.overrideUserInterfaceStyle = parent.userInterfaceStyle
+        buffer.backgroundColor = config.strokeColor ?? config.textColor
+        
+        let strokeColor = buffer.color(at: .zero)
+        
         let screenRect = UIScreen.main.bounds
         let screenSize = screenRect.size
         
@@ -334,7 +341,7 @@ class HintsNTipsPresenter {
         
         shapeLayer.lineWidth = 5
         shapeLayer.lineCap = .round
-        shapeLayer.strokeColor = (config.strokeColor ?? config.textColor).cgColor
+        shapeLayer.strokeColor = (strokeColor ?? config.strokeColor ?? config.textColor).cgColor
         shapeLayer.fillColor = UIColor.clear.cgColor
         
         let path = UIBezierPath()

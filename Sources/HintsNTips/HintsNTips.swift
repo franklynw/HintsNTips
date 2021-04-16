@@ -20,6 +20,7 @@ public struct HintsNTips: View {
     internal var buttonColor: UIColor?
     internal var strokeDuration: TimeInterval = 1
     internal var showsCloseButton = false
+    internal var userInterfaceStyle: UIUserInterfaceStyle = .unspecified
     
     public struct Config: HintIdentifiable {
         public let id: String

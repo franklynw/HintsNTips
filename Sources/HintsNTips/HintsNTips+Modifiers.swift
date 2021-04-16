@@ -39,4 +39,10 @@ extension HintsNTips {
         copy.showsCloseButton = true
         return copy
     }
+    
+    public func userInterfaceStyle(_ userInterfaceStyle: UIUserInterfaceStyle) -> Self {
+        var copy = self
+        copy.userInterfaceStyle = userInterfaceStyle
+        return copy
+    }
 }

@@ -104,4 +104,27 @@ extension UIView {
         
         return Constraints(leading: leading, trailing: trailing, top: top, bottom: bottom, centerX: centerX, centerY: centerY)
     }
+    
+    func color(at point: CGPoint) -> UIColor? {
+        
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue)
+        
+        var pixelData: [UInt8] = [0, 0, 0, 0]
+        
+        guard let context = CGContext(data: &pixelData, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4, space: colorSpace, bitmapInfo: bitmapInfo.rawValue) else {
+            return nil
+        }
+        
+        context.translateBy(x: -point.x, y: -point.y)
+        
+        layer.render(in: context)
+        
+        let red = CGFloat(pixelData[0]) / 255
+        let green = CGFloat(pixelData[1]) / 255
+        let blue = CGFloat(pixelData[2]) / 255
+        let alpha = CGFloat(pixelData[3]) / 255
+        
+        return UIColor(red: red, green: green, blue: blue, alpha: alpha)
+    }
 }
